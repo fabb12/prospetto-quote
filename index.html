@@ -225,6 +225,11 @@
     <div id="liquidita"></div>
     <button class="btn btn-add" onclick="addRow('liquidita','Conto / liquidità')">+ Aggiungi liquidità</button>
 
+    <div class="grp-title">Assicurazioni vita · fuori asse ereditario</div>
+    <p class="sub" style="margin:-6px 0 10px">Le somme delle polizze vita spettano al beneficiario <em>iure proprio</em> (art. 1920 c.c.): restano <strong>fuori dalla massa ereditaria</strong> e non concorrono a relictum, legittima e disponibile.</p>
+    <div id="assicurazioni"></div>
+    <button class="btn btn-add" onclick="addRow('assicurazioni','Polizza vita')">+ Aggiungi assicurazione</button>
+
     <div class="grp-title">Donazioni dirette pregresse · Donatum</div>
     <div id="don_dirette"></div>
     <button class="btn btn-add" onclick="addRow('don_dirette','Donazione diretta (bonifico)')">+ Aggiungi donazione diretta</button>
@@ -244,6 +249,9 @@
       <div class="stat"><div class="lab">Relictum</div><div class="v" id="m_rel">€ 0</div><div class="formula">beni + liquidità</div></div>
       <div class="stat"><div class="lab">Donatum</div><div class="v" id="m_don">€ 0</div><div class="formula">donazioni dirette + indirette</div></div>
       <div class="stat hero"><div class="lab">Massa ereditaria</div><div class="v" id="m_mass">€ 0</div><div class="formula" style="color:#a5b4fc">Relictum + Donatum</div></div>
+    </div>
+    <div class="stats" style="margin-top:12px">
+      <div class="stat"><div class="lab">Assicurazioni · fuori asse</div><div class="v" id="m_ass">€ 0</div><div class="formula">polizze vita (art. 1920 c.c.) — escluse dalla massa</div></div>
     </div>
   </div>
 
@@ -324,8 +332,8 @@ function addRow(id,ph,isDebt=false,desc="",val="",er=""){
   div.appendChild(r);
 }
 
-const CONTAINERS=['immobili','liquidita','don_dirette','don_indirette'];
-const PH={immobili:'Immobile (es. Casa P.C.)',liquidita:'Conto / liquidità',don_dirette:'Donazione diretta (bonifico)',don_indirette:'Donazione indiretta (immobile)'};
+const CONTAINERS=['immobili','liquidita','assicurazioni','don_dirette','don_indirette'];
+const PH={immobili:'Immobile (es. Casa P.C.)',liquidita:'Conto / liquidità',assicurazioni:'Polizza vita',don_dirette:'Donazione diretta (bonifico)',don_indirette:'Donazione indiretta (immobile)'};
 
 /* ====== VALORI DI DEFAULT ====== */
 // Set di valori originali (di fabbrica). Restano il riferimento per "Ripristina default originali".
@@ -338,8 +346,10 @@ const DEFAULT_ORIGINALE={
   liquidita:[
     {desc:'Banca Desio',val:700000,er:'Altro'},
     {desc:'Banca Intesa',val:330000,er:'Altro'},
-    {desc:'Assicurazione',val:60000,er:'Altro'},
     {desc:'Buoni Postali',val:20000,er:'Altro'},
+  ],
+  assicurazioni:[
+    {desc:'Polizza vita',val:60000,er:'Altro'},
   ],
   don_dirette:[
     {desc:'Donazione a F.',val:300000,er:'F.'},
@@ -509,14 +519,17 @@ let donutData=[], barData=[];
 
 function calcola(){
   const immobili=leggi('immobili'), liquidita=leggi('liquidita');
+  const assicurazioni=leggi('assicurazioni');
   const dDir=leggi('don_dirette'), dInd=leggi('don_indirette');
 
   const relictum=sum(immobili)+sum(liquidita);
   const donatum=sum(dDir)+sum(dInd);
-  const massa=relictum+donatum;
+  const massa=relictum+donatum;            // le assicurazioni vita restano fuori (art. 1920 c.c.)
+  const fuoriAsse=sum(assicurazioni);
 
   m_rel.textContent=fmt(relictum);
   m_don.textContent=fmt(donatum);  m_mass.textContent=fmt(massa);
+  m_ass.textContent=fmt(fuoriAsse);
 
   const ric={}; EREDI.forEach(e=>ric[e]=0);
   [...immobili,...liquidita,...dDir,...dInd].forEach(i=>{ if(i.er&&ric.hasOwnProperty(i.er)) ric[i.er]+=i.v; });
