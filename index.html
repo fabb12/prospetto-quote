@@ -117,6 +117,14 @@
   .bar-val{font:600 11px sans-serif;}
   .bar-axis{font:11px sans-serif;fill:#94a3b8;}
   .bar-grid{stroke:#e2e8f0;stroke-width:1;}
+  /* segmenti/fette cliccabili dei grafici */
+  [data-tip]{cursor:pointer;}
+  /* tooltip mostrato al click/tap su una barra o porzione */
+  #chartTip{position:fixed;z-index:9999;pointer-events:none;opacity:0;transition:opacity .12s;
+    background:#0f172a;color:#fff;font:600 12px/1.35 sans-serif;padding:8px 11px;border-radius:9px;
+    box-shadow:0 8px 24px rgba(15,23,42,.28);max-width:240px;transform:translate(-50%,-115%);}
+  #chartTip.show{opacity:1;}
+  #chartTip .tip-val{display:block;font-weight:500;opacity:.85;margin-top:2px;}
   .chart-box{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:20px;}
   .chart-box h3{margin:0 0 4px;font-size:.95rem;font-weight:650;}
   .chart-box .ch-sub{font-size:.76rem;color:var(--muted);margin:0 0 14px;}
@@ -336,6 +344,9 @@
 
 </div>
 
+<!-- tooltip dei grafici: appare al click/tap su una barra o porzione -->
+<div id="chartTip"></div>
+
 <script>
 const EREDI=["Coniuge","F.","B.","D.","I.","L.","Altro"];
 const FIGLI=["F.","B.","D.","I.","L."];
@@ -346,7 +357,7 @@ const RIPARTO_TUTTI=["Coniuge",...FIGLI];
 const OPZIONI_ASSEGNA=[...EREDI,"Tutti"];
 const fmt=n=>"€ "+Math.round(n).toLocaleString("it-IT");
 // Escape minimale per inserire testo (descrizioni utente) dentro l'SVG.
-const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 // Converte un valore digitato (con punti separatori) in numero
 const parseNum=s=>parseFloat(String(s).replace(/\./g,""))||0;
 // Riformatta in tempo reale l'input numerico con i punti separatori delle migliaia
@@ -683,7 +694,7 @@ function drawBars(){
       const w=plotW*it.val/niceMax;
       const op=1-(k%3)*0.26;                              // tonalità alternate per distinguere i beni
       const segW=Math.max(w-(items.length>1?2:0),0);     // piccolo stacco tra i beni
-      g+=`<rect x="${xseg}" y="${y1}" width="${segW}" height="${barH}" rx="4" fill="${d.color}" fill-opacity="${op}"><title>${esc(it.desc)} · ${fmt(it.val)}</title></rect>`;
+      g+=`<rect x="${xseg}" y="${y1}" width="${segW}" height="${barH}" rx="4" fill="${d.color}" fill-opacity="${op}" data-tip="${esc(it.desc)}" data-val="${esc(fmt(it.val))}"><title>${esc(it.desc)} · ${fmt(it.val)}</title></rect>`;
       if(w>40) g+=`<text class="bar-val" x="${xseg+w/2}" y="${y1+barH-3}" text-anchor="middle" fill="#fff" font-weight="700">${kfmt(it.val)}</text>`;
       xseg+=w;
     });
@@ -703,8 +714,10 @@ function renderDonut(boxId,legendId,data,centerLabel){
     data.forEach(d=>{
       const frac=d.val/total;
       // un'unica fetta che copre l'intero cerchio non si disegna con l'arco: la rendiamo come anello pieno
+      const tip=`data-tip="${esc(d.label)}" data-val="${esc(fmt(d.val))}"`;
+      const ttl=`<title>${esc(d.label)} · ${fmt(d.val)}</title>`;
       if(frac>=0.9999){
-        paths+=`<circle cx="${cx}" cy="${cy}" r="${(R+r)/2}" fill="none" stroke="${d.color}" stroke-width="${R-r}"/>`;
+        paths+=`<circle cx="${cx}" cy="${cy}" r="${(R+r)/2}" fill="none" stroke="${d.color}" stroke-width="${R-r}" ${tip}>${ttl}</circle>`;
         return;
       }
       const a2=ang+frac*Math.PI*2;
@@ -713,7 +726,7 @@ function renderDonut(boxId,legendId,data,centerLabel){
       const xi2=cx+r*Math.cos(a2),yi2=cy+r*Math.sin(a2);
       const xi1=cx+r*Math.cos(ang),yi1=cy+r*Math.sin(ang);
       const large=(a2-ang)>Math.PI?1:0;
-      paths+=`<path d="M${x1} ${y1} A${R} ${R} 0 ${large} 1 ${x2} ${y2} L${xi2} ${yi2} A${r} ${r} 0 ${large} 0 ${xi1} ${yi1} Z" fill="${d.color}"/>`;
+      paths+=`<path d="M${x1} ${y1} A${R} ${R} 0 ${large} 1 ${x2} ${y2} L${xi2} ${yi2} A${r} ${r} 0 ${large} 0 ${xi1} ${yi1} Z" fill="${d.color}" ${tip}>${ttl}</path>`;
       ang=a2;
     });
   }
@@ -751,18 +764,39 @@ function drawCombo(){
     g+=`<text class="bar-name" x="0" y="${y0+barH-4}">${d.name}</text>`;
     // quota dall'asse (tinta piena)
     if(d.ric>0)
-      g+=`<rect x="${labelW}" y="${y0}" width="${Math.max(wR,0)}" height="${barH}" rx="4" fill="${d.color}"><title>Quota dall'asse · ${fmt(d.ric)}</title></rect>`;
+      g+=`<rect x="${labelW}" y="${y0}" width="${Math.max(wR,0)}" height="${barH}" rx="4" fill="${d.color}" data-tip="${esc(d.name)} · quota dall'asse" data-val="${esc(fmt(d.ric))}"><title>Quota dall'asse · ${fmt(d.ric)}</title></rect>`;
     // polizze (stesso colore + righe = fuori asse)
     if(d.pol>0){
       const xp=labelW+wR;
-      g+=`<rect x="${xp}" y="${y0}" width="${Math.max(wP,0)}" height="${barH}" rx="4" fill="${d.color}" fill-opacity=".55"><title>Polizze vita (fuori asse) · ${fmt(d.pol)}</title></rect>`;
-      g+=`<rect x="${xp}" y="${y0}" width="${Math.max(wP,0)}" height="${barH}" rx="4" fill="url(#hatch)"/>`;
+      g+=`<rect x="${xp}" y="${y0}" width="${Math.max(wP,0)}" height="${barH}" rx="4" fill="${d.color}" fill-opacity=".55" data-tip="${esc(d.name)} · polizze vita (fuori asse)" data-val="${esc(fmt(d.pol))}"><title>Polizze vita (fuori asse) · ${fmt(d.pol)}</title></rect>`;
+      g+=`<rect x="${xp}" y="${y0}" width="${Math.max(wP,0)}" height="${barH}" rx="4" fill="url(#hatch)" data-tip="${esc(d.name)} · polizze vita (fuori asse)" data-val="${esc(fmt(d.pol))}"/>`;
     }
     const tot=d.ric+d.pol;
     g+=`<text class="bar-val" x="${labelW+(wR+wP)+5}" y="${y0+barH-4}" fill="#475569" font-weight="700">${kfmt(tot)}</text>`;
   });
   box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img">${g}</svg>`;
 }
+
+/* ---- Tooltip al click/tap su barre e porzioni: mostra il nome del bene ---- */
+(function(){
+  const tip=document.getElementById('chartTip');
+  let hideT;
+  function show(el,x,y){
+    const name=el.getAttribute('data-tip'); if(name==null) return;
+    const val=el.getAttribute('data-val')||'';
+    // textContent → nessuna re-interpretazione dell'HTML (descrizioni utente sicure)
+    tip.textContent=name;
+    if(val){ const s=document.createElement('span'); s.className='tip-val'; s.textContent=val; tip.appendChild(s); }
+    tip.style.left=x+'px'; tip.style.top=y+'px';
+    tip.classList.add('show');
+    clearTimeout(hideT); hideT=setTimeout(()=>tip.classList.remove('show'),2800);
+  }
+  document.addEventListener('click',e=>{
+    const el=e.target.closest && e.target.closest('[data-tip]');
+    if(el){ show(el,e.clientX,e.clientY); }
+    else tip.classList.remove('show');
+  });
+})();
 </script>
 </body>
 </html>
