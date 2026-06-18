@@ -181,10 +181,12 @@
 
   <div class="note">⚠️ <span><strong>Avviso.</strong> Simulazione a scopo illustrativo. Valutazioni dei beni, stime delle donazioni ed eventuale azione di riduzione richiedono la verifica di un legale e di un notaio. I valori si riferiscono al momento dell'apertura della successione.</span></div>
 
-  <!-- GESTIONE CONFIGURAZIONI -->
+  <!-- CONFIGURAZIONI E VALORI DI DEFAULT -->
   <div class="card cfg-card">
-    <div class="card-head"><div class="num" style="background:#0f172a">💾</div><h2>Configurazioni salvate</h2></div>
-    <p class="sub">Salva uno scenario con un nome (resta su questo browser). Usa <strong>Esporta file</strong> per scaricare i tuoi scenari e <strong>Importa file</strong> per ricaricarli su qualsiasi dispositivo.</p>
+    <div class="card-head"><div class="num" style="background:#0f172a">💾</div><h2>Configurazioni e valori di default</h2></div>
+    <p class="sub">Gestisci da qui i tuoi scenari e i valori di default. Tutto resta su questo browser; usa <strong>Esporta / Importa file</strong> per spostarli su altri dispositivi.</p>
+
+    <div class="grp-title">Configurazioni salvate</div>
     <div class="cfg-bar">
       <input type="text" id="cfgName" placeholder="Nome configurazione (es. Ipotesi A — liquidità al coniuge)">
       <button class="btn btn-save" onclick="salvaConfig()">💾 Salva</button>
@@ -197,6 +199,16 @@
       <button class="btn btn-ghost" onclick="document.getElementById('cfgFile').click()">⬆ Importa file</button>
       <input type="file" id="cfgFile" accept="application/json" style="display:none" onchange="importaConfig(event)">
     </div>
+
+    <div class="grp-title" style="margin-top:22px">Valori di default</div>
+    <div class="cfg-bar">
+      <button class="btn btn-default" onclick="caricaDefault()">📥 Carica default</button>
+      <button class="btn btn-ghost" onclick="impostaComeDefault()">⭐ Imposta valori attuali come default</button>
+      <button class="btn btn-ghost" onclick="ripristinaDefaultOriginali()">♻️ Ripristina default originali</button>
+      <span class="cfg-spacer"></span>
+      <button class="btn btn-del" onclick="nuovoVuoto()">🗑 Svuota tutto</button>
+    </div>
+
     <div class="cfg-msg" id="cfgMsg"></div>
   </div>
 
@@ -221,13 +233,7 @@
     <div id="don_indirette"></div>
     <button class="btn btn-add" onclick="addRow('don_indirette','Donazione indiretta (immobile)')">+ Aggiungi donazione indiretta</button>
 
-    <div class="action-bar">
-      <button class="btn btn-default" onclick="caricaDefault()">📥 Carica valori di default</button>
-      <button class="btn btn-ghost" onclick="impostaComeDefault()">⭐ Imposta valori attuali come default</button>
-      <button class="btn btn-ghost" onclick="ripristinaDefaultOriginali()">♻️ Ripristina default originali</button>
-      <button class="btn btn-del" onclick="nuovoVuoto()">🗑 Svuota tutto</button>
-    </div>
-    <p class="sub" style="margin:14px 0 0">Le quote e i grafici si aggiornano automaticamente a ogni modifica.</p>
+    <p class="sub" style="margin:18px 0 0">Le quote e i grafici si aggiornano automaticamente a ogni modifica. Usa il riquadro in alto per caricare/salvare i valori di default.</p>
   </div>
 
   <!-- SEZIONE 2 -->
