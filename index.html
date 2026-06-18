@@ -57,8 +57,8 @@
   .grp-title::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand);}
   .grp-title.debt{color:var(--red);} .grp-title.debt::before{background:var(--red);}
   .row{display:flex;gap:10px;margin-bottom:9px;flex-wrap:wrap;align-items:center;}
-  .row input[type=text]{flex:2;min-width:150px;}
-  .row input[type=number]{flex:1;min-width:110px;}
+  .row input.desc{flex:2;min-width:150px;}
+  .row input.num{flex:1;min-width:110px;text-align:right;font-variant-numeric:tabular-nums;}
   .row select{flex:1;min-width:120px;}
   input,select{padding:11px 13px;border:1.5px solid var(--line);border-radius:11px;
     font-size:.9rem;background:#fff;color:var(--ink);transition:border .15s,box-shadow .15s;font-family:inherit;}
@@ -289,6 +289,13 @@ const EREDI=["Coniuge","F.","B.","D.","I.","L.","Altro"];
 const FIGLI=["F.","B.","D.","I.","L."];
 const COLORS={"Coniuge":"#ec4899","F.":"#6366f1","B.":"#06b6d4","D.":"#10b981","I.":"#f59e0b","L.":"#8b5cf6","Altro":"#94a3b8"};
 const fmt=n=>"€ "+Math.round(n).toLocaleString("it-IT");
+// Converte un valore digitato (con punti separatori) in numero
+const parseNum=s=>parseFloat(String(s).replace(/\./g,""))||0;
+// Riformatta in tempo reale l'input numerico con i punti separatori delle migliaia
+function fmtNum(el){
+  const digits=el.value.replace(/[^\d]/g,"");
+  el.value = digits ? Number(digits).toLocaleString("it-IT") : "";
+}
 const initials=n=>n.slice(0,2).toUpperCase();
 
 function addRow(id,ph,isDebt=false,desc="",val="",er=""){
@@ -297,8 +304,9 @@ function addRow(id,ph,isDebt=false,desc="",val="",er=""){
   let sel = isDebt
     ? `<select disabled style="opacity:.5"><option>— passività generale</option></select>`
     : `<select>${EREDI.map(e=>`<option ${e===er?"selected":""}>${e}</option>`).join("")}</select>`;
-  r.innerHTML=`<input type="text" placeholder="${ph}" value="${desc}">
-    <input type="number" min="0" step="100" placeholder="Valore €" value="${val}">
+  const valFmt = (val!=="" && val!=null) ? Number(val).toLocaleString("it-IT") : "";
+  r.innerHTML=`<input type="text" class="desc" placeholder="${ph}" value="${desc}">
+    <input type="text" class="num" inputmode="numeric" placeholder="Valore €" value="${valFmt}" oninput="fmtNum(this)">
     ${sel}<button class="btn btn-del" onclick="this.parentElement.remove()">✕</button>`;
   div.appendChild(r);
 }
@@ -329,7 +337,7 @@ window.onload=()=>{
 function leggi(id){
   const out=[];
   document.querySelectorAll(`#${id} .row`).forEach(r=>{
-    const v=parseFloat(r.querySelector('input[type=number]').value)||0;
+    const v=parseNum(r.querySelector('input.num').value);
     const s=r.querySelector('select');
     const er=s&&!s.disabled?s.value:null;
     if(v>0) out.push({v,er});
@@ -355,8 +363,8 @@ function serializza(){
   CONTAINERS.forEach(id=>{
     data[id]=[];
     document.querySelectorAll(`#${id} .row`).forEach(r=>{
-      const desc=r.querySelector('input[type=text]').value;
-      const val=r.querySelector('input[type=number]').value;
+      const desc=r.querySelector('input.desc').value;
+      const val=parseNum(r.querySelector('input.num').value);
       const er=r.querySelector('select').value;
       data[id].push({desc,val,er});
     });
