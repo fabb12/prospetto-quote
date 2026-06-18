@@ -70,9 +70,10 @@
   .btn-add:hover{background:#e0e7ff;transform:translateY(-1px);}
   .btn-del{background:var(--red-bg);color:var(--red);padding:11px 14px;}
   .btn-del:hover{background:#fecaca;}
-  .btn-calc{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;
-    font-size:1rem;padding:15px 28px;width:100%;margin-top:14px;box-shadow:0 8px 20px rgba(79,70,229,.3);}
-  .btn-calc:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(79,70,229,.4);}
+  .action-bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+  .btn-default{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;
+    box-shadow:0 6px 16px rgba(79,70,229,.28);}
+  .btn-default:hover{transform:translateY(-1px);box-shadow:0 10px 22px rgba(79,70,229,.36);}
 
   /* GATE */
   .gate{position:fixed;inset:0;background:linear-gradient(135deg,#0f172a,#312e81);
@@ -220,7 +221,13 @@
     <div id="don_indirette"></div>
     <button class="btn btn-add" onclick="addRow('don_indirette','Donazione indiretta (immobile)')">+ Aggiungi donazione indiretta</button>
 
-    <button class="btn btn-calc" onclick="calcola()">🧮 Calcola quote e aggiorna grafici</button>
+    <div class="action-bar">
+      <button class="btn btn-default" onclick="caricaDefault()">📥 Carica valori di default</button>
+      <button class="btn btn-ghost" onclick="impostaComeDefault()">⭐ Imposta valori attuali come default</button>
+      <button class="btn btn-ghost" onclick="ripristinaDefaultOriginali()">♻️ Ripristina default originali</button>
+      <button class="btn btn-del" onclick="nuovoVuoto()">🗑 Svuota tutto</button>
+    </div>
+    <p class="sub" style="margin:14px 0 0">Le quote e i grafici si aggiornano automaticamente a ogni modifica.</p>
   </div>
 
   <!-- SEZIONE 2 -->
@@ -265,7 +272,7 @@
           <th>Erede</th><th>Quota</th><th>Valore ricevuto</th><th>Legittima</th><th>Differenza</th>
         </tr></thead>
         <tbody id="rows">
-          <tr><td colspan="5" style="text-align:center;color:var(--muted)">Premi "Calcola" per generare i risultati.</td></tr>
+          <tr><td colspan="5" style="text-align:center;color:var(--muted)">Inserisci i dati per generare i risultati.</td></tr>
         </tbody>
       </table>
     </div>
@@ -307,30 +314,78 @@ function addRow(id,ph,isDebt=false,desc="",val="",er=""){
   const valFmt = (val!=="" && val!=null) ? Number(val).toLocaleString("it-IT") : "";
   r.innerHTML=`<input type="text" class="desc" placeholder="${ph}" value="${desc}">
     <input type="text" class="num" inputmode="numeric" placeholder="Valore €" value="${valFmt}" oninput="fmtNum(this)">
-    ${sel}<button class="btn btn-del" onclick="this.parentElement.remove()">✕</button>`;
+    ${sel}<button class="btn btn-del" onclick="this.parentElement.remove();calcola()">✕</button>`;
   div.appendChild(r);
 }
 
 const CONTAINERS=['immobili','liquidita','don_dirette','don_indirette'];
 const PH={immobili:'Immobile (es. Casa P.C.)',liquidita:'Conto / liquidità',don_dirette:'Donazione diretta (bonifico)',don_indirette:'Donazione indiretta (immobile)'};
 
+/* ====== VALORI DI DEFAULT ====== */
+// Set di valori originali (di fabbrica). Restano il riferimento per "Ripristina default originali".
+const DEFAULT_ORIGINALE={
+  immobili:[
+    {desc:'Immobile P.C.',val:70000,er:'F.'},
+    {desc:'Immobile P.S.',val:600000,er:'I.'},
+    {desc:'Immobile S.A.',val:100000,er:'L.'},
+  ],
+  liquidita:[
+    {desc:'Banca Desio',val:700000,er:'Altro'},
+    {desc:'Banca Intesa',val:330000,er:'Altro'},
+    {desc:'Assicurazione',val:60000,er:'Altro'},
+    {desc:'Buoni Postali',val:20000,er:'Altro'},
+  ],
+  don_dirette:[
+    {desc:'Donazione a F.',val:300000,er:'F.'},
+    {desc:'Donazione a D.',val:50000,er:'D.'},
+  ],
+  don_indirette:[
+    {desc:'Casa Milano',val:200000,er:'B.'},
+  ],
+};
+const DEFAULT_KEY="sim_successione_default_v1";
+
+// Legge i valori di default personalizzati (se presenti) altrimenti quelli originali.
+function getDefault(){
+  try{ return JSON.parse(localStorage.getItem(DEFAULT_KEY)) || DEFAULT_ORIGINALE; }
+  catch(e){ return DEFAULT_ORIGINALE; }
+}
+// Carica i valori di default nel form.
 function caricaDefault(){
+  ripristina(getDefault());
+  calcola();
+  msg("Valori di default caricati ✓","info");
+}
+// Salva lo scenario attuale come nuovo default (su questo browser).
+function impostaComeDefault(){
+  try{
+    localStorage.setItem(DEFAULT_KEY,JSON.stringify(serializza()));
+    msg("Valori attuali impostati come default ✓","ok");
+  }catch(e){ msg("Impossibile salvare il default su questo browser.","err"); }
+}
+// Ripristina i valori di default a quelli originali di fabbrica.
+function ripristinaDefaultOriginali(){
+  localStorage.removeItem(DEFAULT_KEY);
+  ripristina(DEFAULT_ORIGINALE);
+  calcola();
+  msg("Default ripristinati ai valori originali ✓","info");
+}
+// Svuota tutto: una riga vuota per sezione.
+function nuovoVuoto(){
   svuotaTutto();
-  addRow('immobili','Immobile',false,'Immobile P.C.',70000,'F.');
-  addRow('immobili','Immobile',false,'Immobile P.S.',600000,'I.');
-  addRow('immobili','Immobile',false,'Immobile S.A.',100000,'L.');
-  addRow('liquidita','Liquidità',false,'Banca Desio',700000,'Altro');
-  addRow('liquidita','Liquidità',false,'Banca Intesa',330000,'Altro');
-  addRow('liquidita','Liquidità',false,'Assicurazione',60000,'Altro');
-  addRow('liquidita','Liquidità',false,'Buoni Postali',20000,'Altro');
-  addRow('don_dirette','Donazione diretta',false,'Donazione a F.',300000,'F.');
-  addRow('don_dirette','Donazione diretta',false,'Donazione a D.',50000,'D.');
-  addRow('don_indirette','Donazione indiretta',false,'Casa Milano',200000,'B.');
+  CONTAINERS.forEach(id=>addRow(id,PH[id]));
+  calcola();
 }
 
 window.onload=()=>{
-  caricaDefault();
-  calcola();
+  // Ricalcolo automatico a ogni modifica (input di testo/numero e cambio erede).
+  CONTAINERS.forEach(id=>{
+    const c=document.getElementById(id);
+    c.addEventListener('input',calcola);
+    c.addEventListener('change',calcola);
+  });
+  // Di default si parte vuoti.
+  nuovoVuoto();
   aggiornaTendina();
 };
 
