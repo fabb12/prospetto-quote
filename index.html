@@ -176,6 +176,19 @@
     padding:10px 14px;border-radius:10px;font-size:.84rem;}
   .hidden{display:none;}
   @media(max-width:560px){.row{flex-direction:column;align-items:stretch;}.row input,.row select{width:100%;}}
+
+  /* TOGGLE CONIUGE */
+  .toggle-row{display:flex;align-items:center;gap:12px;margin-bottom:18px;
+    background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 16px;flex-wrap:wrap;}
+  .toggle-row .toggle-label{display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;font-size:.9rem;user-select:none;}
+  .sw{position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0;}
+  .sw input{opacity:0;width:0;height:0;}
+  .sw-track{position:absolute;inset:0;background:#cbd5e1;border-radius:99px;transition:.2s;}
+  .sw input:checked+.sw-track{background:var(--brand);}
+  .sw-track::before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;
+    background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.15);}
+  .sw input:checked+.sw-track::before{transform:translateX(18px);}
+  .toggle-note{font-size:.78rem;color:var(--muted);margin-left:4px;}
 </style>
 </head>
 <body>
@@ -271,7 +284,18 @@
   <!-- SEZIONE 3 -->
   <div class="card">
     <div class="card-head"><div class="num">3</div><h2>Risultati, grafici e verifica lesioni</h2></div>
-    <p class="sub">Coniuge 1/4 · figli 1/2 ÷ 5 (10% ciascuno) · disponibile 1/4.</p>
+    <p class="sub" id="sub3">Coniuge 1/4 · figli 1/2 ÷ 5 (10% ciascuno) · disponibile 1/4.</p>
+
+    <div class="toggle-row">
+      <label class="toggle-label">
+        <span class="sw">
+          <input type="checkbox" id="chkConiuge" checked onchange="calcola()">
+          <span class="sw-track"></span>
+        </span>
+        Includi Coniuge nella successione
+      </label>
+      <span class="toggle-note">Se disabilitato, la legittima viene redistribuita tra i soli figli (art. 537 c.c.: 2/3 ÷ 5 ≈ 13,3% ciascuno, disponibile 1/3).</span>
+    </div>
 
     <div class="charts">
       <div class="chart-box">
@@ -305,7 +329,7 @@
     </div>
 
     <div class="disp">
-      <h3>📊 Stato della Quota Disponibile (25% della massa)</h3>
+      <h3 id="dispTitle">📊 Stato della Quota Disponibile (25% della massa)</h3>
       <div class="track"><div class="fill" id="fill"></div></div>
       <div class="disp-grid">
         <div class="it"><div class="l">Disponibile totale</div><div class="n" id="dTot">€ 0</div></div>
@@ -568,6 +592,9 @@ function importaConfig(ev){
 let donutData=[], barData=[], comboData=[], polDonutData=[];
 
 function calcola(){
+  const includeConiuge=document.getElementById('chkConiuge').checked;
+  const riparto=includeConiuge?["Coniuge",...FIGLI]:[...FIGLI];
+
   const immobili=leggi('immobili'), liquidita=leggi('liquidita');
   const assicurazioni=leggi('assicurazioni');
   const dDir=leggi('don_dirette'), dInd=leggi('don_indirette');
@@ -585,8 +612,9 @@ function calcola(){
   const beni={}; EREDI.forEach(e=>beni[e]=[]);   // beni/donazioni associati a ciascun erede (per il grafico)
   [...immobili,...liquidita,...dDir,...dInd].forEach(i=>{
     if(i.er==="Tutti"){
-      const q=i.v/RIPARTO_TUTTI.length;          // diviso in parti uguali tra coniuge + 5 figli
-      RIPARTO_TUTTI.forEach(e=>{ ric[e]+=q; beni[e].push({desc:(i.desc||"Bene")+" · ⅙ di "+fmt(i.v),val:q}); });
+      const q=i.v/riparto.length;
+      const frac="1/"+riparto.length;
+      riparto.forEach(e=>{ ric[e]+=q; beni[e].push({desc:(i.desc||"Bene")+" · "+frac+" di "+fmt(i.v),val:q}); });
     } else if(i.er&&ric.hasOwnProperty(i.er)){
       ric[i.er]+=i.v;
       beni[i.er].push({desc:i.desc||"Bene",val:i.v});
@@ -597,15 +625,24 @@ function calcola(){
   const pol={}; EREDI.forEach(e=>pol[e]=0);
   assicurazioni.forEach(i=>{
     if(i.er==="Tutti"){
-      const q=i.v/RIPARTO_TUTTI.length;
-      RIPARTO_TUTTI.forEach(e=>{ pol[e]+=q; });
+      const q=i.v/riparto.length;
+      riparto.forEach(e=>{ pol[e]+=q; });
     } else if(i.er&&pol.hasOwnProperty(i.er)){
       pol[i.er]+=i.v;
     }
   });
 
-  const leg={}; leg["Coniuge"]=massa*0.25; FIGLI.forEach(f=>leg[f]=massa*0.10); leg["Altro"]=0;
-  const perc={"Coniuge":"25%","F.":"10%","B.":"10%","D.":"10%","I.":"10%","L.":"10%","Altro":"—"};
+  const leg={};
+  if(includeConiuge){
+    leg["Coniuge"]=massa*0.25; FIGLI.forEach(f=>leg[f]=massa*0.10);
+  } else {
+    leg["Coniuge"]=0; FIGLI.forEach(f=>leg[f]=massa*2/15);
+  }
+  leg["Altro"]=0;
+
+  const perc=includeConiuge
+    ?{"Coniuge":"25%","F.":"10%","B.":"10%","D.":"10%","I.":"10%","L.":"10%","Altro":"—"}
+    :{"Coniuge":"—","F.":"13,3%","B.":"13,3%","D.":"13,3%","I.":"13,3%","L.":"13,3%","Altro":"—"};
 
   const tbody=document.getElementById('rows'); tbody.innerHTML="";
   let surplus=0; barData=[];
@@ -613,6 +650,7 @@ function calcola(){
   ordine.forEach(e=>{
     const rv=ric[e]||0, lg=leg[e]||0;
     if(e==="Altro"&&rv===0&&lg===0) return;
+    if(!includeConiuge&&e==="Coniuge"&&rv===0) return;
     const diff=rv-lg;
     let cls="",tag="";
     if(e!=="Altro"){
@@ -628,8 +666,8 @@ function calcola(){
     if(e!=="Altro") barData.push({name:e,ric:rv,leg:lg,color:COLORS[e],items:beni[e]});
   });
 
-  // disponibile
-  const dTotV=massa*0.25;
+  // disponibile (1/4 con coniuge · 1/3 senza coniuge per soli figli, art. 537 c.c.)
+  const dTotV=includeConiuge?massa*0.25:massa/3;
   const p=dTotV>0?Math.min(surplus/dTotV*100,100):0;
   dTot.textContent=fmt(dTotV); dUsed.textContent=fmt(surplus); dLeft.textContent=fmt(dTotV-surplus);
   const f=document.getElementById('fill'); f.style.width=(p<0?0:p)+"%";
@@ -638,6 +676,14 @@ function calcola(){
   if(surplus>dTotV+0.5){w.classList.remove('hidden');
     w.textContent=`⚠️ Disponibile superata di ${fmt(surplus-dTotV)}: le attribuzioni in eccesso intaccano la legittima altrui (possibile azione di riduzione).`;}
   else w.classList.add('hidden');
+
+  // Aggiorna testi dinamici in base alla presenza/assenza del coniuge
+  document.getElementById('sub3').textContent=includeConiuge
+    ?"Coniuge 1/4 · figli 1/2 ÷ 5 (10% ciascuno) · disponibile 1/4."
+    :"Senza coniuge (art. 537 c.c.) · figli 2/3 ÷ 5 (≈ 13,3% ciascuno) · disponibile 1/3.";
+  document.getElementById('dispTitle').textContent=includeConiuge
+    ?"📊 Stato della Quota Disponibile (25% della massa)"
+    :"📊 Stato della Quota Disponibile (1/3 della massa)";
 
   // donut data
   donutData=[
