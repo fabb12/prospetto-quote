@@ -127,6 +127,11 @@
   .donut-legend{font-size:.8rem;}
   .donut-legend div{display:flex;align-items:center;gap:8px;margin:5px 0;}
   .donut-legend b{margin-left:auto;font-variant-numeric:tabular-nums;}
+  /* swatch a righe per indicare "fuori asse" nella legenda */
+  .dot.hatch{background:
+    repeating-linear-gradient(45deg,#94a3b8 0 2px,#fff 2px 4px);}
+  .fuori-badge{display:inline-block;font-size:.64rem;font-weight:700;padding:2px 8px;border-radius:99px;
+    background:var(--amber-bg);color:#92400e;text-transform:uppercase;letter-spacing:.03em;margin-left:8px;vertical-align:middle;}
 
   /* TABLE */
   .tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--line);}
@@ -300,6 +305,32 @@
         <div class="it"><div class="l">Residua</div><div class="n" id="dLeft">€ 0</div></div>
       </div>
       <div class="warn hidden" id="warn"></div>
+    </div>
+  </div>
+
+  <!-- SEZIONE 4 · POLIZZE VITA -->
+  <div class="card">
+    <div class="card-head"><div class="num" style="background:var(--amber)">4</div><h2>Polizze vita · ripartizione<span class="fuori-badge">fuori asse</span></h2></div>
+    <p class="sub">Le somme delle polizze vita spettano ai beneficiari <em>iure proprio</em> (art. 1920 c.c.) e <strong>non concorrono a legittima e disponibile</strong>. Qui le visualizziamo a parte: il beneficio economico totale per persona e la divisione delle sole polizze.</p>
+
+    <div class="charts">
+      <div class="chart-box">
+        <h3>Quadro complessivo per persona</h3>
+        <p class="ch-sub">Per ciascuno: quota ricevuta dall'asse (tinta piena) + polizze vita (a righe, fuori asse). Il totale è il beneficio economico complessivo.</p>
+        <div id="combo"></div>
+        <div class="legend">
+          <span><i class="dot" style="background:#6366f1"></i>Quota ereditaria (dentro l'asse)</span>
+          <span><i class="dot hatch"></i>Polizze vita (fuori asse)</span>
+        </div>
+      </div>
+      <div class="chart-box">
+        <h3>Divisione delle polizze</h3>
+        <p class="ch-sub">Come si ripartiscono le sole polizze vita tra i beneficiari.</p>
+        <div class="donut-wrap">
+          <div id="polDonut"></div>
+          <div class="donut-legend" id="polLegend"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -523,7 +554,7 @@ function importaConfig(ev){
 }
 /* ====== fine gestione configurazioni ====== */
 
-let donutData=[], barData=[];
+let donutData=[], barData=[], comboData=[], polDonutData=[];
 
 function calcola(){
   const immobili=leggi('immobili'), liquidita=leggi('liquidita');
@@ -548,6 +579,17 @@ function calcola(){
     } else if(i.er&&ric.hasOwnProperty(i.er)){
       ric[i.er]+=i.v;
       beni[i.er].push({desc:i.desc||"Bene",val:i.v});
+    }
+  });
+
+  // Polizze vita: ripartizione tra beneficiari (fuori asse, art. 1920 c.c.)
+  const pol={}; EREDI.forEach(e=>pol[e]=0);
+  assicurazioni.forEach(i=>{
+    if(i.er==="Tutti"){
+      const q=i.v/RIPARTO_TUTTI.length;
+      RIPARTO_TUTTI.forEach(e=>{ pol[e]+=q; });
+    } else if(i.er&&pol.hasOwnProperty(i.er)){
+      pol[i.er]+=i.v;
     }
   });
 
@@ -593,7 +635,17 @@ function calcola(){
     {label:"Donazioni indirette",val:sum(dInd),color:"#f59e0b"},
   ].filter(d=>d.val>0);
 
-  drawBars(); drawDonut();
+  // quadro complessivo per persona: quota dall'asse + polizze (fuori asse)
+  comboData=ordine
+    .map(e=>({name:e,ric:ric[e]||0,pol:pol[e]||0,color:COLORS[e]}))
+    .filter(d=>d.ric>0||d.pol>0);
+
+  // donut divisione delle sole polizze, per beneficiario
+  polDonutData=ordine
+    .map(e=>({label:e,val:pol[e]||0,color:COLORS[e]}))
+    .filter(d=>d.val>0);
+
+  drawBars(); drawDonut(); drawCombo(); drawPolDonut();
 }
 
 /* ---- BAR CHART (SVG, barre orizzontali, etichette sempre leggibili) ---- */
@@ -641,15 +693,21 @@ function drawBars(){
   box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img">${g}</svg>`;
 }
 
-/* ---- DONUT (SVG) ---- */
-function drawDonut(){
-  const box=document.getElementById('donut');
-  const total=donutData.reduce((a,b)=>a+b.val,0);
+/* ---- DONUT (SVG) — generico, riusato per massa e polizze ---- */
+function renderDonut(boxId,legendId,data,centerLabel){
+  const box=document.getElementById(boxId);
+  const total=data.reduce((a,b)=>a+b.val,0);
   const R=70,r=44,cx=85,cy=85;
   let ang=-Math.PI/2, paths="";
   if(total>0){
-    donutData.forEach(d=>{
-      const a2=ang+(d.val/total)*Math.PI*2;
+    data.forEach(d=>{
+      const frac=d.val/total;
+      // un'unica fetta che copre l'intero cerchio non si disegna con l'arco: la rendiamo come anello pieno
+      if(frac>=0.9999){
+        paths+=`<circle cx="${cx}" cy="${cy}" r="${(R+r)/2}" fill="none" stroke="${d.color}" stroke-width="${R-r}"/>`;
+        return;
+      }
+      const a2=ang+frac*Math.PI*2;
       const x1=cx+R*Math.cos(ang),y1=cy+R*Math.sin(ang);
       const x2=cx+R*Math.cos(a2),y2=cy+R*Math.sin(a2);
       const xi2=cx+r*Math.cos(a2),yi2=cy+r*Math.sin(a2);
@@ -660,10 +718,50 @@ function drawDonut(){
     });
   }
   box.innerHTML=`<svg width="170" height="170" viewBox="0 0 170 170">${paths}
-    <text x="85" y="80" text-anchor="middle" font-size="11" fill="#94a3b8">Massa</text>
+    <text x="85" y="80" text-anchor="middle" font-size="11" fill="#94a3b8">${centerLabel}</text>
     <text x="85" y="98" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">${total>=1000?"€"+Math.round(total/1000)+"k":fmt(total)}</text></svg>`;
-  document.getElementById('donutLegend').innerHTML=donutData.map(d=>
-    `<div><span class="dot" style="background:${d.color}"></span>${d.label}<b>${fmt(d.val)}</b></div>`).join("")||'<span style="color:#94a3b8">Nessun dato</span>';
+  document.getElementById(legendId).innerHTML=data.map(d=>
+    `<div><span class="dot" style="background:${d.color}"></span>${esc(d.label)}<b>${fmt(d.val)}</b></div>`).join("")||'<span style="color:#94a3b8">Nessun dato</span>';
+}
+function drawDonut(){ renderDonut('donut','donutLegend',donutData,'Massa'); }
+function drawPolDonut(){ renderDonut('polDonut','polLegend',polDonutData,'Polizze'); }
+
+/* ---- QUADRO COMPLESSIVO PER PERSONA (SVG) ---- */
+/* barre orizzontali impilate: quota dall'asse (tinta piena) + polizze (a righe, fuori asse) */
+function drawCombo(){
+  const box=document.getElementById('combo');
+  if(!comboData.length){box.innerHTML='<p style="color:#94a3b8;font-size:.85rem">Nessun dato</p>';return;}
+  const W=440, labelW=78, rowH=34, barH=18, padT=10, padR=70, padB=22;
+  const H=padT+padB+comboData.length*rowH;
+  const max=Math.max(...comboData.map(d=>d.ric+d.pol),1);
+  const niceMax=Math.ceil(max/100000)*100000||max;
+  const plotW=W-labelW-padR;
+  const kfmt=v=>v>=1000?"€"+Math.round(v/1000)+"k":"€"+Math.round(v);
+  let g='<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'+
+        '<line x1="0" y1="0" x2="0" y2="6" stroke="#fff" stroke-width="2.4" stroke-opacity=".75"/></pattern></defs>';
+  // griglia + scala asse X
+  for(let i=0;i<=4;i++){
+    const x=labelW+plotW*i/4;
+    g+=`<line class="bar-grid" x1="${x}" y1="${padT}" x2="${x}" y2="${H-padB-2}"/>`;
+    g+=`<text class="bar-axis" x="${x}" y="${H-padB+8}" text-anchor="middle">${kfmt(niceMax*i/4)}</text>`;
+  }
+  comboData.forEach((d,i)=>{
+    const y0=padT+i*rowH+4;
+    const wR=plotW*d.ric/niceMax, wP=plotW*d.pol/niceMax;
+    g+=`<text class="bar-name" x="0" y="${y0+barH-4}">${d.name}</text>`;
+    // quota dall'asse (tinta piena)
+    if(d.ric>0)
+      g+=`<rect x="${labelW}" y="${y0}" width="${Math.max(wR,0)}" height="${barH}" rx="4" fill="${d.color}"><title>Quota dall'asse · ${fmt(d.ric)}</title></rect>`;
+    // polizze (stesso colore + righe = fuori asse)
+    if(d.pol>0){
+      const xp=labelW+wR;
+      g+=`<rect x="${xp}" y="${y0}" width="${Math.max(wP,0)}" height="${barH}" rx="4" fill="${d.color}" fill-opacity=".55"><title>Polizze vita (fuori asse) · ${fmt(d.pol)}</title></rect>`;
+      g+=`<rect x="${xp}" y="${y0}" width="${Math.max(wP,0)}" height="${barH}" rx="4" fill="url(#hatch)"/>`;
+    }
+    const tot=d.ric+d.pol;
+    g+=`<text class="bar-val" x="${labelW+(wR+wP)+5}" y="${y0+barH-4}" fill="#475569" font-weight="700">${kfmt(tot)}</text>`;
+  });
+  box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img">${g}</svg>`;
 }
 </script>
 </body>
