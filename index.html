@@ -263,10 +263,10 @@
     <div class="charts">
       <div class="chart-box">
         <h3>Valore ricevuto vs Legittima spettante</h3>
-        <p class="ch-sub">Per ogni erede, confronto tra quanto riceve e la sua quota di legittima.</p>
+        <p class="ch-sub">Per ogni erede, confronto tra quanto riceve e la sua quota di legittima. La barra colorata è suddivisa per singolo bene/donazione: passa il mouse su un segmento per descrizione e valore.</p>
         <div id="bars"></div>
         <div class="legend">
-          <span><i class="dot" style="background:#6366f1"></i>Valore ricevuto</span>
+          <span><i class="dot" style="background:#6366f1"></i>Valore ricevuto (ogni segmento = un bene/donazione)</span>
           <span><i class="dot" style="background:#cbd5e1"></i>Legittima spettante</span>
         </div>
       </div>
@@ -309,7 +309,13 @@
 const EREDI=["Coniuge","F.","B.","D.","I.","L.","Altro"];
 const FIGLI=["F.","B.","D.","I.","L."];
 const COLORS={"Coniuge":"#ec4899","F.":"#6366f1","B.":"#06b6d4","D.":"#10b981","I.":"#f59e0b","L.":"#8b5cf6","Altro":"#94a3b8"};
+// Eredi tra cui si divide un bene/assicurazione assegnato a "Tutti": coniuge + 5 figli, in quote uguali.
+const RIPARTO_TUTTI=["Coniuge",...FIGLI];
+// Voci selezionabili nella tendina del beneficiario (eredi + "Tutti").
+const OPZIONI_ASSEGNA=[...EREDI,"Tutti"];
 const fmt=n=>"€ "+Math.round(n).toLocaleString("it-IT");
+// Escape minimale per inserire testo (descrizioni utente) dentro l'SVG.
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 // Converte un valore digitato (con punti separatori) in numero
 const parseNum=s=>parseFloat(String(s).replace(/\./g,""))||0;
 // Riformatta in tempo reale l'input numerico con i punti separatori delle migliaia
@@ -324,7 +330,7 @@ function addRow(id,ph,isDebt=false,desc="",val="",er=""){
   const r=document.createElement("div"); r.className="row";
   let sel = isDebt
     ? `<select disabled style="opacity:.5"><option>— passività generale</option></select>`
-    : `<select>${EREDI.map(e=>`<option ${e===er?"selected":""}>${e}</option>`).join("")}</select>`;
+    : `<select>${OPZIONI_ASSEGNA.map(e=>`<option ${e===er?"selected":""}>${e}</option>`).join("")}</select>`;
   const valFmt = (val!=="" && val!=null) ? Number(val).toLocaleString("it-IT") : "";
   r.innerHTML=`<input type="text" class="desc" placeholder="${ph}" value="${desc}">
     <input type="text" class="num" inputmode="numeric" placeholder="Valore €" value="${valFmt}" oninput="fmtNum(this)">
@@ -411,7 +417,9 @@ function leggi(id){
     const v=parseNum(r.querySelector('input.num').value);
     const s=r.querySelector('select');
     const er=s&&!s.disabled?s.value:null;
-    if(v>0) out.push({v,er});
+    const descEl=r.querySelector('input.desc');
+    const desc=descEl?descEl.value.trim():"";
+    if(v>0) out.push({v,er,desc});
   });
   return out;
 }
@@ -532,7 +540,16 @@ function calcola(){
   m_ass.textContent=fmt(fuoriAsse);
 
   const ric={}; EREDI.forEach(e=>ric[e]=0);
-  [...immobili,...liquidita,...dDir,...dInd].forEach(i=>{ if(i.er&&ric.hasOwnProperty(i.er)) ric[i.er]+=i.v; });
+  const beni={}; EREDI.forEach(e=>beni[e]=[]);   // beni/donazioni associati a ciascun erede (per il grafico)
+  [...immobili,...liquidita,...dDir,...dInd].forEach(i=>{
+    if(i.er==="Tutti"){
+      const q=i.v/RIPARTO_TUTTI.length;          // diviso in parti uguali tra coniuge + 5 figli
+      RIPARTO_TUTTI.forEach(e=>{ ric[e]+=q; beni[e].push({desc:(i.desc||"Bene")+" · ⅙ di "+fmt(i.v),val:q}); });
+    } else if(i.er&&ric.hasOwnProperty(i.er)){
+      ric[i.er]+=i.v;
+      beni[i.er].push({desc:i.desc||"Bene",val:i.v});
+    }
+  });
 
   const leg={}; leg["Coniuge"]=massa*0.25; FIGLI.forEach(f=>leg[f]=massa*0.10); leg["Altro"]=0;
   const perc={"Coniuge":"25%","F.":"10%","B.":"10%","D.":"10%","I.":"10%","L.":"10%","Altro":"—"};
@@ -555,7 +572,7 @@ function calcola(){
       <td>${fmt(rv)}</td>
       <td>${fmt(lg)}</td>
       <td class="${cls}">${fmt(diff)}${tag}</td></tr>`;
-    if(e!=="Altro") barData.push({name:e,ric:rv,leg:lg,color:COLORS[e]});
+    if(e!=="Altro") barData.push({name:e,ric:rv,leg:lg,color:COLORS[e],items:beni[e]});
   });
 
   // disponibile
@@ -606,9 +623,18 @@ function drawBars(){
     // barra legittima (grigia, sopra)
     g+=`<rect x="${labelW}" y="${y0}" width="${Math.max(wL,0)}" height="${barH}" rx="4" fill="#cbd5e1"/>`;
     g+=`<text class="bar-val" x="${labelW+wL+5}" y="${y0+barH-3}" fill="#64748b">${kfmt(d.leg)}</text>`;
-    // barra ricevuto (colore, sotto)
+    // barra ricevuto (colore, sotto): suddivisa per singolo bene/donazione (associazione bene → erede)
     const y1=y0+barH+5;
-    g+=`<rect x="${labelW}" y="${y1}" width="${Math.max(wR,0)}" height="${barH}" rx="4" fill="${d.color}"/>`;
+    const items=(d.items&&d.items.length)?d.items:[{desc:"—",val:d.ric}];
+    let xseg=labelW;
+    items.forEach((it,k)=>{
+      const w=plotW*it.val/niceMax;
+      const op=1-(k%3)*0.26;                              // tonalità alternate per distinguere i beni
+      const segW=Math.max(w-(items.length>1?2:0),0);     // piccolo stacco tra i beni
+      g+=`<rect x="${xseg}" y="${y1}" width="${segW}" height="${barH}" rx="4" fill="${d.color}" fill-opacity="${op}"><title>${esc(it.desc)} · ${fmt(it.val)}</title></rect>`;
+      if(w>40) g+=`<text class="bar-val" x="${xseg+w/2}" y="${y1+barH-3}" text-anchor="middle" fill="#fff" font-weight="700">${kfmt(it.val)}</text>`;
+      xseg+=w;
+    });
     const lesione=d.ric<d.leg-0.5;
     g+=`<text class="bar-val" x="${labelW+wR+5}" y="${y1+barH-3}" fill="${lesione?'#dc2626':'#475569'}" font-weight="700">${kfmt(d.ric)}</text>`;
   });
