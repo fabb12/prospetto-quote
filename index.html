@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulazione Successione · Quote Ereditarie</title>
+<style>
+  :root{
+    --bg:#0f172a; --bg2:#1e293b;
+    --panel:#ffffff; --panel2:#f8fafc;
+    --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+    --brand:#4f46e5; --brand2:#6366f1; --brand-soft:#eef2ff;
+    --green:#059669; --green-bg:#d1fae5;
+    --red:#dc2626; --red-bg:#fee2e2;
+    --amber:#d97706; --amber-bg:#fef3c7;
+    --shadow:0 4px 20px rgba(15,23,42,.06);
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    margin:0; background:#eef1f6; color:var(--ink); line-height:1.55;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:24px 20px 60px;}
+
+  /* HEADER */
+  header{
+    background:linear-gradient(135deg,#0f172a 0%,#312e81 60%,#4f46e5 100%);
+    color:#fff; padding:34px 32px; border-radius:22px; margin-bottom:26px;
+    position:relative; overflow:hidden;
+  }
+  header::after{content:"";position:absolute;right:-60px;top:-60px;width:240px;height:240px;
+    background:radial-gradient(circle,rgba(255,255,255,.12),transparent 70%);border-radius:50%;}
+  header h1{margin:0 0 8px;font-size:1.6rem;font-weight:700;letter-spacing:-.02em;}
+  header p{margin:0;opacity:.85;font-size:.92rem;max-width:680px;}
+  .pill-row{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
+  .pill{background:rgba(255,255,255,.14);backdrop-filter:blur(6px);padding:5px 12px;
+    border-radius:99px;font-size:.78rem;font-weight:500;border:1px solid rgba(255,255,255,.18);}
+
+  /* CARDS */
+  .card{background:var(--panel);border-radius:var(--radius);padding:26px;
+    margin-bottom:22px;box-shadow:var(--shadow);}
+  .card-head{display:flex;align-items:center;gap:12px;margin-bottom:6px;}
+  .num{width:30px;height:30px;border-radius:9px;background:var(--brand);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;
+    box-shadow:0 4px 10px rgba(79,70,229,.35);}
+  .card-head h2{margin:0;font-size:1.18rem;font-weight:650;letter-spacing:-.01em;}
+  .sub{color:var(--muted);font-size:.86rem;margin:0 0 20px;}
+
+  .note{background:var(--amber-bg);border:1px solid #fde68a;padding:12px 14px;
+    border-radius:12px;font-size:.82rem;color:#92400e;margin-bottom:22px;display:flex;gap:8px;}
+
+  /* INPUT GROUPS */
+  .grp{margin-bottom:8px;}
+  .grp-title{font-weight:650;margin:20px 0 10px;font-size:.82rem;text-transform:uppercase;
+    letter-spacing:.05em;color:var(--brand);display:flex;align-items:center;gap:8px;}
+  .grp-title::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand);}
+  .grp-title.debt{color:var(--red);} .grp-title.debt::before{background:var(--red);}
+  .row{display:flex;gap:10px;margin-bottom:9px;flex-wrap:wrap;align-items:center;}
+  .row input[type=text]{flex:2;min-width:150px;}
+  .row input[type=number]{flex:1;min-width:110px;}
+  .row select{flex:1;min-width:120px;}
+  input,select{padding:11px 13px;border:1.5px solid var(--line);border-radius:11px;
+    font-size:.9rem;background:#fff;color:var(--ink);transition:border .15s,box-shadow .15s;font-family:inherit;}
+  input:focus,select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft);}
+
+  .btn{border:none;border-radius:11px;padding:11px 16px;font-size:.85rem;cursor:pointer;
+    font-weight:600;transition:.15s;font-family:inherit;}
+  .btn-add{background:var(--brand-soft);color:var(--brand);}
+  .btn-add:hover{background:#e0e7ff;transform:translateY(-1px);}
+  .btn-del{background:var(--red-bg);color:var(--red);padding:11px 14px;}
+  .btn-del:hover{background:#fecaca;}
+  .btn-calc{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;
+    font-size:1rem;padding:15px 28px;width:100%;margin-top:14px;box-shadow:0 8px 20px rgba(79,70,229,.3);}
+  .btn-calc:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(79,70,229,.4);}
+
+  /* GATE */
+  .gate{position:fixed;inset:0;background:linear-gradient(135deg,#0f172a,#312e81);
+    display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;}
+  .gate-box{background:#fff;border-radius:20px;padding:38px 34px;max-width:380px;width:100%;
+    text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4);}
+  .gate-icon{font-size:2.4rem;}
+  .gate-box h2{margin:10px 0 4px;font-size:1.3rem;}
+  .gate-box p{color:var(--muted);font-size:.88rem;margin:0 0 18px;}
+  .gate-box input{width:100%;text-align:center;font-size:1rem;padding:13px;}
+  .gate-err{color:var(--red);font-size:.85rem;font-weight:600;margin-top:10px;min-height:18px;}
+
+  /* CONFIG BAR */
+  .cfg-card{border:1.5px solid #e0e7ff;}
+  .cfg-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .cfg-bar #cfgName{flex:2;min-width:220px;}
+  .cfg-bar #cfgList{flex:1.4;min-width:200px;}
+  .cfg-spacer{flex:1;min-width:0;}
+  .btn-save{background:linear-gradient(135deg,var(--green),#10b981);color:#fff;}
+  .btn-save:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(5,150,105,.3);}
+  .btn-ghost{background:#f1f5f9;color:#475569;}
+  .btn-ghost:hover{background:#e2e8f0;}
+  .cfg-msg{font-size:.82rem;margin-top:12px;min-height:18px;font-weight:600;}
+  .cfg-msg.ok{color:var(--green);} .cfg-msg.err{color:var(--red);} .cfg-msg.info{color:var(--brand);}
+
+  /* MASS STATS */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:18px;}
+  .stat .lab{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600;}
+  .stat .v{font-size:1.4rem;font-weight:750;margin-top:6px;letter-spacing:-.02em;}
+  .stat.hero{background:linear-gradient(135deg,#0f172a,#312e81);color:#fff;grid-column:span 1;}
+  .stat.hero .lab{color:#a5b4fc;} 
+  .stat .formula{font-size:.72rem;color:var(--muted);margin-top:4px;}
+
+  /* CHARTS */
+  .charts{display:grid;grid-template-columns:1.35fr 1fr;gap:22px;margin-top:8px;}
+  @media(max-width:860px){.charts{grid-template-columns:1fr;}}
+  #bars{width:100%;}
+  #bars svg{width:100%;height:auto;display:block;}
+  .bar-name{font:600 12px sans-serif;fill:#334155;}
+  .bar-val{font:600 11px sans-serif;}
+  .bar-axis{font:11px sans-serif;fill:#94a3b8;}
+  .bar-grid{stroke:#e2e8f0;stroke-width:1;}
+  .chart-box{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:20px;}
+  .chart-box h3{margin:0 0 4px;font-size:.95rem;font-weight:650;}
+  .chart-box .ch-sub{font-size:.76rem;color:var(--muted);margin:0 0 14px;}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:.78rem;}
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block;}
+  .donut-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;}
+  .donut-legend{font-size:.8rem;}
+  .donut-legend div{display:flex;align-items:center;gap:8px;margin:5px 0;}
+  .donut-legend b{margin-left:auto;font-variant-numeric:tabular-nums;}
+
+  /* TABLE */
+  .tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.9rem;}
+  th,td{padding:13px 14px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  thead th{background:var(--panel2);font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;
+    color:var(--muted);font-weight:700;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#fafbff;}
+  .who{display:flex;align-items:center;gap:9px;}
+  .avatar{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:.78rem;color:#fff;}
+  .pos{color:var(--green);font-weight:700;}
+  .neg{color:var(--red);font-weight:700;}
+  .tag{display:inline-block;font-size:.64rem;font-weight:700;padding:2px 8px;border-radius:99px;margin-left:6px;
+    text-transform:uppercase;letter-spacing:.03em;}
+  .tag.les{background:var(--red-bg);color:var(--red);}
+  .tag.sur{background:var(--green-bg);color:var(--green);}
+
+  /* DISPONIBILE */
+  .disp{margin-top:24px;background:linear-gradient(135deg,#1e293b,#0f172a);color:#fff;
+    border-radius:16px;padding:22px;}
+  .disp h3{margin:0 0 14px;font-size:1rem;font-weight:650;}
+  .track{background:rgba(255,255,255,.12);border-radius:99px;height:30px;overflow:hidden;position:relative;}
+  .fill{height:100%;background:linear-gradient(90deg,#fbbf24,#f59e0b,#dc2626);width:0;
+    transition:width .7s cubic-bezier(.16,1,.3,1);border-radius:99px;display:flex;align-items:center;
+    justify-content:flex-end;padding-right:10px;font-size:.72rem;font-weight:700;color:#fff;}
+  .disp-grid{display:flex;justify-content:space-between;gap:14px;margin-top:14px;flex-wrap:wrap;font-size:.84rem;}
+  .disp-grid .it{flex:1;min-width:120px;}
+  .disp-grid .it .l{opacity:.7;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;}
+  .disp-grid .it .n{font-size:1.05rem;font-weight:700;margin-top:2px;}
+  .warn{margin-top:14px;background:rgba(220,38,38,.2);border:1px solid rgba(248,113,113,.5);
+    padding:10px 14px;border-radius:10px;font-size:.84rem;}
+  .hidden{display:none;}
+  @media(max-width:560px){.row{flex-direction:column;align-items:stretch;}.row input,.row select{width:100%;}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <h1>Simulazione di Riunione Fittizia & Quote Ereditarie</h1>
+    <p>Stima orientativa ex art. 556 c.c. con verifica delle lesioni di legittima e visualizzazione della ripartizione.</p>
+    <div class="pill-row">
+      <span class="pill">👤 Coniuge</span>
+      <span class="pill">👨‍👩‍👧‍👦 5 figli: F. · B. · D. · I. · L.</span>
+      <span class="pill">⚖️ Art. 542 c.c.</span>
+    </div>
+  </header>
+
+  <div class="note">⚠️ <span><strong>Avviso.</strong> Simulazione a scopo illustrativo. Valutazioni dei beni, stime delle donazioni ed eventuale azione di riduzione richiedono la verifica di un legale e di un notaio. I valori si riferiscono al momento dell'apertura della successione.</span></div>
+
+  <!-- GESTIONE CONFIGURAZIONI -->
+  <div class="card cfg-card">
+    <div class="card-head"><div class="num" style="background:#0f172a">💾</div><h2>Configurazioni salvate</h2></div>
+    <p class="sub">Salva uno scenario con un nome (resta su questo browser). Usa <strong>Esporta file</strong> per scaricare i tuoi scenari e <strong>Importa file</strong> per ricaricarli su qualsiasi dispositivo.</p>
+    <div class="cfg-bar">
+      <input type="text" id="cfgName" placeholder="Nome configurazione (es. Ipotesi A — liquidità al coniuge)">
+      <button class="btn btn-save" onclick="salvaConfig()">💾 Salva</button>
+      <select id="cfgList" onchange="caricaConfig(this.value)">
+        <option value="">— Carica una configurazione —</option>
+      </select>
+      <button class="btn btn-ghost" onclick="eliminaConfig()">🗑 Elimina</button>
+      <span class="cfg-spacer"></span>
+      <button class="btn btn-ghost" onclick="esportaConfig()">⬇ Esporta file</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('cfgFile').click()">⬆ Importa file</button>
+      <input type="file" id="cfgFile" accept="application/json" style="display:none" onchange="importaConfig(event)">
+    </div>
+    <div class="cfg-msg" id="cfgMsg"></div>
+  </div>
+
+  <!-- SEZIONE 1 -->
+  <div class="card">
+    <div class="card-head"><div class="num">1</div><h2>Inserimento dati</h2></div>
+    <p class="sub">Inserisci il valore in Euro di ogni voce e assegnala all'erede beneficiario.</p>
+
+    <div class="grp-title">Immobili in successione · Relictum</div>
+    <div id="immobili"></div>
+    <button class="btn btn-add" onclick="addRow('immobili','Immobile (es. Casa P.C.)')">+ Aggiungi immobile</button>
+
+    <div class="grp-title">Liquidità in successione · Relictum</div>
+    <div id="liquidita"></div>
+    <button class="btn btn-add" onclick="addRow('liquidita','Conto / liquidità')">+ Aggiungi liquidità</button>
+
+    <div class="grp-title">Donazioni dirette pregresse · Donatum</div>
+    <div id="don_dirette"></div>
+    <button class="btn btn-add" onclick="addRow('don_dirette','Donazione diretta (bonifico)')">+ Aggiungi donazione diretta</button>
+
+    <div class="grp-title">Donazioni indirette · Donatum</div>
+    <div id="don_indirette"></div>
+    <button class="btn btn-add" onclick="addRow('don_indirette','Donazione indiretta (immobile)')">+ Aggiungi donazione indiretta</button>
+
+    <button class="btn btn-calc" onclick="calcola()">🧮 Calcola quote e aggiorna grafici</button>
+  </div>
+
+  <!-- SEZIONE 2 -->
+  <div class="card">
+    <div class="card-head"><div class="num">2</div><h2>Massa ereditaria</h2></div>
+    <p class="sub">Relictum più il donatum (riunione fittizia, art. 556 c.c.).</p>
+    <div class="stats">
+      <div class="stat"><div class="lab">Relictum</div><div class="v" id="m_rel">€ 0</div><div class="formula">beni + liquidità</div></div>
+      <div class="stat"><div class="lab">Donatum</div><div class="v" id="m_don">€ 0</div><div class="formula">donazioni dirette + indirette</div></div>
+      <div class="stat hero"><div class="lab">Massa ereditaria</div><div class="v" id="m_mass">€ 0</div><div class="formula" style="color:#a5b4fc">Relictum + Donatum</div></div>
+    </div>
+  </div>
+
+  <!-- SEZIONE 3 -->
+  <div class="card">
+    <div class="card-head"><div class="num">3</div><h2>Risultati, grafici e verifica lesioni</h2></div>
+    <p class="sub">Coniuge 1/4 · figli 1/2 ÷ 5 (10% ciascuno) · disponibile 1/4.</p>
+
+    <div class="charts">
+      <div class="chart-box">
+        <h3>Valore ricevuto vs Legittima spettante</h3>
+        <p class="ch-sub">Per ogni erede, confronto tra quanto riceve e la sua quota di legittima.</p>
+        <div id="bars"></div>
+        <div class="legend">
+          <span><i class="dot" style="background:#6366f1"></i>Valore ricevuto</span>
+          <span><i class="dot" style="background:#cbd5e1"></i>Legittima spettante</span>
+        </div>
+      </div>
+      <div class="chart-box">
+        <h3>Composizione della massa</h3>
+        <p class="ch-sub">Da cosa è formata la massa ereditaria.</p>
+        <div class="donut-wrap">
+          <div id="donut"></div>
+          <div class="donut-legend" id="donutLegend"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap" style="margin-top:22px;">
+      <table>
+        <thead><tr>
+          <th>Erede</th><th>Quota</th><th>Valore ricevuto</th><th>Legittima</th><th>Differenza</th>
+        </tr></thead>
+        <tbody id="rows">
+          <tr><td colspan="5" style="text-align:center;color:var(--muted)">Premi "Calcola" per generare i risultati.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="disp">
+      <h3>📊 Stato della Quota Disponibile (25% della massa)</h3>
+      <div class="track"><div class="fill" id="fill"></div></div>
+      <div class="disp-grid">
+        <div class="it"><div class="l">Disponibile totale</div><div class="n" id="dTot">€ 0</div></div>
+        <div class="it"><div class="l">Consumata da surplus</div><div class="n" id="dUsed">€ 0</div></div>
+        <div class="it"><div class="l">Residua</div><div class="n" id="dLeft">€ 0</div></div>
+      </div>
+      <div class="warn hidden" id="warn"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const EREDI=["Coniuge","F.","B.","D.","I.","L.","Altro"];
+const FIGLI=["F.","B.","D.","I.","L."];
+const COLORS={"Coniuge":"#ec4899","F.":"#6366f1","B.":"#06b6d4","D.":"#10b981","I.":"#f59e0b","L.":"#8b5cf6","Altro":"#94a3b8"};
+const fmt=n=>"€ "+Math.round(n).toLocaleString("it-IT");
+const initials=n=>n.slice(0,2).toUpperCase();
+
+function addRow(id,ph,isDebt=false,desc="",val="",er=""){
+  const div=document.getElementById(id);
+  const r=document.createElement("div"); r.className="row";
+  let sel = isDebt
+    ? `<select disabled style="opacity:.5"><option>— passività generale</option></select>`
+    : `<select>${EREDI.map(e=>`<option ${e===er?"selected":""}>${e}</option>`).join("")}</select>`;
+  r.innerHTML=`<input type="text" placeholder="${ph}" value="${desc}">
+    <input type="number" min="0" step="100" placeholder="Valore €" value="${val}">
+    ${sel}<button class="btn btn-del" onclick="this.parentElement.remove()">✕</button>`;
+  div.appendChild(r);
+}
+
+const CONTAINERS=['immobili','liquidita','don_dirette','don_indirette'];
+const PH={immobili:'Immobile (es. Casa P.C.)',liquidita:'Conto / liquidità',don_dirette:'Donazione diretta (bonifico)',don_indirette:'Donazione indiretta (immobile)'};
+
+function caricaDefault(){
+  svuotaTutto();
+  addRow('immobili','Immobile',false,'Immobile P.C.',70000,'F.');
+  addRow('immobili','Immobile',false,'Immobile P.S.',600000,'I.');
+  addRow('immobili','Immobile',false,'Immobile S.A.',100000,'L.');
+  addRow('liquidita','Liquidità',false,'Banca Desio',700000,'Altro');
+  addRow('liquidita','Liquidità',false,'Banca Intesa',330000,'Altro');
+  addRow('liquidita','Liquidità',false,'Assicurazione',60000,'Altro');
+  addRow('liquidita','Liquidità',false,'Buoni Postali',20000,'Altro');
+  addRow('don_dirette','Donazione diretta',false,'Donazione a F.',300000,'F.');
+  addRow('don_dirette','Donazione diretta',false,'Donazione a D.',50000,'D.');
+  addRow('don_indirette','Donazione indiretta',false,'Casa Milano',200000,'B.');
+}
+
+window.onload=()=>{
+  caricaDefault();
+  calcola();
+  aggiornaTendina();
+};
+
+function leggi(id){
+  const out=[];
+  document.querySelectorAll(`#${id} .row`).forEach(r=>{
+    const v=parseFloat(r.querySelector('input[type=number]').value)||0;
+    const s=r.querySelector('select');
+    const er=s&&!s.disabled?s.value:null;
+    if(v>0) out.push({v,er});
+  });
+  return out;
+}
+const sum=a=>a.reduce((x,y)=>x+y.v,0);
+
+/* ====== GESTIONE CONFIGURAZIONI (LOCALE + ESPORTA/IMPORTA FILE) ====== */
+const STORE_KEY="sim_successione_configs_v1";
+
+function msg(testo,tipo){
+  const m=document.getElementById('cfgMsg');
+  m.textContent=testo; m.className="cfg-msg "+(tipo||"");
+  if(testo) setTimeout(()=>{ if(m.textContent===testo){m.textContent="";m.className="cfg-msg";} },4500);
+}
+function getStore(){ try{return JSON.parse(localStorage.getItem(STORE_KEY))||{};}catch(e){return {};} }
+function setStore(o){ try{localStorage.setItem(STORE_KEY,JSON.stringify(o));return true;}catch(e){msg("Impossibile salvare su questo browser.","err");return false;} }
+
+// Legge l'intero scenario corrente
+function serializza(){
+  const data={};
+  CONTAINERS.forEach(id=>{
+    data[id]=[];
+    document.querySelectorAll(`#${id} .row`).forEach(r=>{
+      const desc=r.querySelector('input[type=text]').value;
+      const val=r.querySelector('input[type=number]').value;
+      const er=r.querySelector('select').value;
+      data[id].push({desc,val,er});
+    });
+  });
+  return data;
+}
+function svuotaTutto(){ CONTAINERS.forEach(id=>document.getElementById(id).innerHTML=""); }
+function ripristina(data){
+  svuotaTutto();
+  CONTAINERS.forEach(id=>{
+    (data[id]||[]).forEach(item=>addRow(id,PH[id],false,item.desc||"",item.val||"",item.er||"Altro"));
+  });
+}
+
+function aggiornaTendina(sel=""){
+  const store=getStore();
+  const nomi=Object.keys(store).sort((a,b)=>a.localeCompare(b,'it'));
+  const list=document.getElementById('cfgList');
+  list.innerHTML='<option value="">— Carica una configurazione —</option>'+
+    nomi.map(n=>`<option value="${n.replace(/"/g,'&quot;')}" ${n===sel?"selected":""}>${n}</option>`).join("");
+}
+
+function salvaConfig(){
+  const nome=document.getElementById('cfgName').value.trim();
+  if(!nome){ msg("Inserisci un nome per la configurazione.","err"); return; }
+  const store=getStore();
+  if(store.hasOwnProperty(nome) && !confirm(`Esiste già una configurazione "${nome}". Sovrascriverla?`)) return;
+  store[nome]={salvato:new Date().toISOString(),dati:serializza()};
+  if(setStore(store)){ aggiornaTendina(nome); msg(`Configurazione "${nome}" salvata ✓ — ricordati di Esportare per conservarla.`,"ok"); }
+}
+
+function caricaConfig(nome){
+  if(!nome) return;
+  const store=getStore();
+  if(!store[nome]){ msg("Configurazione non trovata.","err"); return; }
+  ripristina(store[nome].dati);
+  document.getElementById('cfgName').value=nome;
+  calcola();
+  msg(`Configurazione "${nome}" caricata ✓`,"info");
+}
+
+function eliminaConfig(){
+  const nome=document.getElementById('cfgList').value;
+  if(!nome){ msg("Seleziona prima una configurazione dalla tendina.","err"); return; }
+  if(!confirm(`Eliminare definitivamente "${nome}"?`)) return;
+  const store=getStore(); delete store[nome];
+  if(setStore(store)){ aggiornaTendina(); msg(`Configurazione "${nome}" eliminata.`,"info"); }
+}
+
+// Scarica TUTTE le configurazioni in un file JSON (da conservare / ricaricare ovunque)
+function esportaConfig(){
+  const store=getStore();
+  if(!Object.keys(store).length){ msg("Nessuna configurazione salvata da esportare.","err"); return; }
+  const blob=new Blob([JSON.stringify(store,null,2)],{type:"application/json"});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download="configurazioni_successione.json";
+  a.click(); URL.revokeObjectURL(a.href);
+  msg("File configurazioni scaricato ✓","ok");
+}
+
+// Carica da file JSON: unisce alle configurazioni di questo browser
+function importaConfig(ev){
+  const file=ev.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const imported=JSON.parse(reader.result);
+      const store=getStore();
+      let n=0;
+      Object.keys(imported).forEach(k=>{ if(imported[k]&&imported[k].dati){ store[k]=imported[k]; n++; } });
+      if(n===0){ msg("Nessuna configurazione valida nel file.","err"); }
+      else if(setStore(store)){ aggiornaTendina(); msg(`${n} configurazione/i caricata/e ✓`,"ok"); }
+    }catch(e){ msg("File non valido o danneggiato.","err"); }
+    ev.target.value="";
+  };
+  reader.readAsText(file);
+}
+/* ====== fine gestione configurazioni ====== */
+
+let donutData=[], barData=[];
+
+function calcola(){
+  const immobili=leggi('immobili'), liquidita=leggi('liquidita');
+  const dDir=leggi('don_dirette'), dInd=leggi('don_indirette');
+
+  const relictum=sum(immobili)+sum(liquidita);
+  const donatum=sum(dDir)+sum(dInd);
+  const massa=relictum+donatum;
+
+  m_rel.textContent=fmt(relictum);
+  m_don.textContent=fmt(donatum);  m_mass.textContent=fmt(massa);
+
+  const ric={}; EREDI.forEach(e=>ric[e]=0);
+  [...immobili,...liquidita,...dDir,...dInd].forEach(i=>{ if(i.er&&ric.hasOwnProperty(i.er)) ric[i.er]+=i.v; });
+
+  const leg={}; leg["Coniuge"]=massa*0.25; FIGLI.forEach(f=>leg[f]=massa*0.10); leg["Altro"]=0;
+  const perc={"Coniuge":"25%","F.":"10%","B.":"10%","D.":"10%","I.":"10%","L.":"10%","Altro":"—"};
+
+  const tbody=document.getElementById('rows'); tbody.innerHTML="";
+  let surplus=0; barData=[];
+  const ordine=["Coniuge",...FIGLI,"Altro"];
+  ordine.forEach(e=>{
+    const rv=ric[e]||0, lg=leg[e]||0;
+    if(e==="Altro"&&rv===0&&lg===0) return;
+    const diff=rv-lg;
+    let cls="",tag="";
+    if(e!=="Altro"){
+      if(diff<-0.5){cls="neg";tag='<span class="tag les">Lesione</span>';}
+      else if(diff>0.5){cls="pos";tag='<span class="tag sur">Surplus</span>';surplus+=diff;}
+    } else if(diff>0.5) surplus+=diff;
+    tbody.innerHTML+=`<tr>
+      <td><div class="who"><span class="avatar" style="background:${COLORS[e]}">${initials(e)}</span>${e}</div></td>
+      <td>${perc[e]}</td>
+      <td>${fmt(rv)}</td>
+      <td>${fmt(lg)}</td>
+      <td class="${cls}">${fmt(diff)}${tag}</td></tr>`;
+    if(e!=="Altro") barData.push({name:e,ric:rv,leg:lg,color:COLORS[e]});
+  });
+
+  // disponibile
+  const dTotV=massa*0.25;
+  const p=dTotV>0?Math.min(surplus/dTotV*100,100):0;
+  dTot.textContent=fmt(dTotV); dUsed.textContent=fmt(surplus); dLeft.textContent=fmt(dTotV-surplus);
+  const f=document.getElementById('fill'); f.style.width=(p<0?0:p)+"%";
+  f.textContent=p>=8?Math.round(p)+"%":"";
+  const w=document.getElementById('warn');
+  if(surplus>dTotV+0.5){w.classList.remove('hidden');
+    w.textContent=`⚠️ Disponibile superata di ${fmt(surplus-dTotV)}: le attribuzioni in eccesso intaccano la legittima altrui (possibile azione di riduzione).`;}
+  else w.classList.add('hidden');
+
+  // donut data
+  donutData=[
+    {label:"Relictum",val:relictum,color:"#4f46e5"},
+    {label:"Donazioni dirette",val:sum(dDir),color:"#06b6d4"},
+    {label:"Donazioni indirette",val:sum(dInd),color:"#f59e0b"},
+  ].filter(d=>d.val>0);
+
+  drawBars(); drawDonut();
+}
+
+/* ---- BAR CHART (SVG, barre orizzontali, etichette sempre leggibili) ---- */
+function drawBars(){
+  const box=document.getElementById('bars');
+  if(!barData.length){box.innerHTML='<p style="color:#94a3b8;font-size:.85rem">Nessun dato</p>';return;}
+  const W=440;                          // viewBox width (scala responsive via CSS)
+  const labelW=78;                      // spazio per il nome erede
+  const rowH=46, gap=10, barH=15, padT=10, padR=70, padB=8;
+  const H=padT+padB+barData.length*rowH;
+  const max=Math.max(...barData.flatMap(d=>[d.ric,d.leg]),1);
+  const niceMax=Math.ceil(max/100000)*100000||max;
+  const plotW=W-labelW-padR;
+  const kfmt=v=>v>=1000?"€"+Math.round(v/1000)+"k":"€"+Math.round(v);
+  let g="";
+  // griglia verticale + scala asse X
+  for(let i=0;i<=4;i++){
+    const x=labelW+plotW*i/4;
+    g+=`<line class="bar-grid" x1="${x}" y1="${padT}" x2="${x}" y2="${H-padB-2}"/>`;
+    g+=`<text class="bar-axis" x="${x}" y="${H-padB+8}" text-anchor="middle">${kfmt(niceMax*i/4)}</text>`;
+  }
+  barData.forEach((d,i)=>{
+    const y0=padT+i*rowH+6;
+    const wR=plotW*d.ric/niceMax, wL=plotW*d.leg/niceMax;
+    // nome erede
+    g+=`<text class="bar-name" x="0" y="${y0+barH+3}">${d.name}</text>`;
+    // barra legittima (grigia, sopra)
+    g+=`<rect x="${labelW}" y="${y0}" width="${Math.max(wL,0)}" height="${barH}" rx="4" fill="#cbd5e1"/>`;
+    g+=`<text class="bar-val" x="${labelW+wL+5}" y="${y0+barH-3}" fill="#64748b">${kfmt(d.leg)}</text>`;
+    // barra ricevuto (colore, sotto)
+    const y1=y0+barH+5;
+    g+=`<rect x="${labelW}" y="${y1}" width="${Math.max(wR,0)}" height="${barH}" rx="4" fill="${d.color}"/>`;
+    const lesione=d.ric<d.leg-0.5;
+    g+=`<text class="bar-val" x="${labelW+wR+5}" y="${y1+barH-3}" fill="${lesione?'#dc2626':'#475569'}" font-weight="700">${kfmt(d.ric)}</text>`;
+  });
+  box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img">${g}</svg>`;
+}
+
+/* ---- DONUT (SVG) ---- */
+function drawDonut(){
+  const box=document.getElementById('donut');
+  const total=donutData.reduce((a,b)=>a+b.val,0);
+  const R=70,r=44,cx=85,cy=85;
+  let ang=-Math.PI/2, paths="";
+  if(total>0){
+    donutData.forEach(d=>{
+      const a2=ang+(d.val/total)*Math.PI*2;
+      const x1=cx+R*Math.cos(ang),y1=cy+R*Math.sin(ang);
+      const x2=cx+R*Math.cos(a2),y2=cy+R*Math.sin(a2);
+      const xi2=cx+r*Math.cos(a2),yi2=cy+r*Math.sin(a2);
+      const xi1=cx+r*Math.cos(ang),yi1=cy+r*Math.sin(ang);
+      const large=(a2-ang)>Math.PI?1:0;
+      paths+=`<path d="M${x1} ${y1} A${R} ${R} 0 ${large} 1 ${x2} ${y2} L${xi2} ${yi2} A${r} ${r} 0 ${large} 0 ${xi1} ${yi1} Z" fill="${d.color}"/>`;
+      ang=a2;
+    });
+  }
+  box.innerHTML=`<svg width="170" height="170" viewBox="0 0 170 170">${paths}
+    <text x="85" y="80" text-anchor="middle" font-size="11" fill="#94a3b8">Massa</text>
+    <text x="85" y="98" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">${total>=1000?"€"+Math.round(total/1000)+"k":fmt(total)}</text></svg>`;
+  document.getElementById('donutLegend').innerHTML=donutData.map(d=>
+    `<div><span class="dot" style="background:${d.color}"></span>${d.label}<b>${fmt(d.val)}</b></div>`).join("")||'<span style="color:#94a3b8">Nessun dato</span>';
+}
+</script>
+</body>
+</html>
